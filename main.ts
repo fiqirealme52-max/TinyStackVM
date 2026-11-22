@@ -1,6 +1,5 @@
-import{mkdirSync,readdirSync,readFileSync,writeFileSync}from"node:fs";
-import{join}from"node:path";
-const E=new TextEncoder();
+import{mkdirSync,readdirSync,readFileSync,writeFileSync}from"fs";
+import{join}from"path";
 function run(p:Uint8Array,g:Uint8Array){
  const n=p.length,D=new Int32Array(256),C=new Int32Array(64),M=new Int32Array(256),O=new Uint8Array(65536);
  let s=0,c=0,l=0,j=0,x=0,t=0;
@@ -31,16 +30,14 @@ function run(p:Uint8Array,g:Uint8Array){
    case 2:D[s++]=p[x-4]|p[x-3]<<8|p[x-2]<<16|p[x-1]<<24;break;
    case 3:s--;break;
    case 4:D[s]=D[s-1];s++;break;
-   case 5:{const v=D[s-1];D[s-1]=D[s-2];D[s-2]=v;break}
+   case 5:[D[s-1],D[s-2]]=[D[s-2],D[s-1]];break;
    case 6:D[s]=D[s-2];s++;break;
-   case 7:{const v=D[s-3];D[s-3]=D[s-2];D[s-2]=D[s-1];D[s-1]=v;break}
+   case 7:[D[s-3],D[s-2],D[s-1]]=[D[s-2],D[s-1],D[s-3]];break;
    case 23:D[s-1]=-D[s-1]|0;break;
    case 27:D[s-1]=~D[s-1];break;
    case 48:case 49:case 50:{
-    const r=((p[x-2]|p[x-1]<<8)<<16)>>16;
-    let q=1;
-    if(k!==48){const v=D[--s];q=k===49?v===0:v!==0}
-    if(q)x+=r;
+    const r=(p[x-2]|p[x-1]<<8)<<16>>16;
+    if(k===48||(k===49?D[--s]===0:D[--s]!==0))x+=r;
     break}
    case 51:
     if(c===64)return d(7);
@@ -48,9 +45,8 @@ function run(p:Uint8Array,g:Uint8Array){
    case 52:
     if(!c)return d(8);
     x=C[--c];break;
-   case 64:{const v=D[s-1];if(v<0||v>255)return d(6);D[s-1]=M[v];break}
-   case 65:{const v=D[s-1],w=D[s-2];if(v<0||v>255)return d(6);s-=2;M[v]=w;break}
-   case 80:{const w=E.encode(String(D[s-1]));if(l+w.length>65536)return d(11);s--;O.set(w,l);l+=w.length;break}
+   case 64:case 65:{const v=D[s-1];if(v<0||v>255)return d(6);if(k===64)D[s-1]=M[v];else{s-=2;M[v]=D[s]}break}
+   case 80:{const w=String(D[s-1]);if(l+w.length>65536)return d(11);s--;for(let i=0;i<w.length;)O[l++]=w.charCodeAt(i++);break}
    case 81:
     if(l+1>65536)return d(11);
     O[l++]=D[--s]&255;break;
@@ -61,8 +57,8 @@ function run(p:Uint8Array,g:Uint8Array){
     if(k===16)r=A+B|0;
     else if(k===17)r=A-B|0;
     else if(k===18)r=Math.imul(A,B);
-    else if(k===19){if(!B)return d(4);r=A===-2147483648&&B===-1?A:A/B|0}
-    else if(k===20){if(!B)return d(4);r=B===-1?0:A%B|0}
+    else if(k===19){if(!B)return d(4);r=A/B|0}
+    else if(k===20){if(!B)return d(4);r=A%B}
     else if(k===21){if(!B)return d(4);r=Math.floor((A>>>0)/(B>>>0))|0}
     else if(k===22){if(!B)return d(4);r=(A>>>0)%(B>>>0)|0}
     else if(k===24)r=A&B;
@@ -71,17 +67,17 @@ function run(p:Uint8Array,g:Uint8Array){
     else if(k===28)r=A<<(B&31);
     else if(k===29)r=A>>(B&31);
     else if(k===30)r=(A>>>(B&31))|0;
-    else if(k===32)r=A===B?1:0;
-    else if(k===33)r=A<B?1:0;
-    else if(k===34)r=(A>>>0)<(B>>>0)?1:0;
+    else if(k===32)r=+(A===B);
+    else if(k===33)r=+(A<B);
+    else if(k===34)r=+((A>>>0)<(B>>>0));
     s-=2;D[s++]=r;
    }
   }
  }
 }
-const I=process.env.MAKEFUN_INPUT_DIR??"/input",O=process.env.MAKEFUN_OUTPUT_DIR??"/output";
+const I=process.env.MAKEFUN_INPUT_DIR??"/input",O=process.env.MAKEFUN_OUTPUT_DIR??"/output",R=(i,f)=>new Uint8Array(readFileSync(join(I,i,f)));
 for(const id of readdirSync(I).sort()){
- const r=run(new Uint8Array(readFileSync(join(I,id,"program.bin"))),new Uint8Array(readFileSync(join(I,id,"input.bin"))));
+ const r=run(R(id,"program.bin"),R(id,"input.bin"));
  mkdirSync(join(O,id),{recursive:true});
  writeFileSync(join(O,id,"stdout.bin"),r.o);
  writeFileSync(join(O,id,"exit.txt"),`${r.v}\n`);
